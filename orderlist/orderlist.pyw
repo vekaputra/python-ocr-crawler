@@ -5,6 +5,7 @@ import pyautogui as pg
 import telebot
 import tkinter as tk
 from tkinter import ttk
+from PIL import Image
 
 TESSERACT_CONFIG = '--psm 6 -l eng -c tessedit_char_whitelist=0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz:'
 BOT_TOKEN = ''
@@ -37,19 +38,19 @@ def parseOCR(result):
     for row in rows:
         if row == '\x0c':
             continue
-        cols = row.upper().replace('DAY', '.').split(' ')
+        cols = row.upper().split(' ')
 
-        if len(cols) != 7:
+        if len(cols) != 10:
             continue
 
         parsedResult.append([
-            cols[0], # time
-            cols[1].replace('1', 'I'), # code
-            cols[2], # order type
-            cols[3], # order price
-            cols[4], # order qty
-            cols[5], # order done price
-            cols[6] # order done qty
+            cols[0] + cols[1], # time
+            cols[2].replace('1', 'I').replace('0', 'O'), # code
+            cols[3], # order type
+            cols[6], # order price
+            cols[7], # order qty
+            cols[8], # order done price
+            cols[9] # order done qty
         ])
     
     return parsedResult
@@ -64,6 +65,7 @@ def broadcastNewOrder(userId, rows):
         if i >= 5:
             break
         i += 1
+
         if row[0] in accountCaches[userId]:
             continue
         else:
@@ -86,11 +88,15 @@ def broadcastNewOrder(userId, rows):
 def getOCRValue(userIds):
     img = pg.screenshot()
 
+    # width 880
+    # height 315
+    scale = 3
+    size = (880*scale, 315*scale)
     cropImgs = [
-        img.crop((70, 150, 950, 465)).convert('RGB'),
-        img.crop((1000, 150, 1880, 465)).convert('RGB'),
-        img.crop((70, 690, 950, 1005)).convert('RGB'),
-        img.crop((1000, 690, 1880, 1005)).convert('RGB'),
+        img.crop((75, 150, 955, 465)).resize(size, Image.ANTIALIAS).convert('L').point(lambda x : 255 if x > 200 else 0),
+        img.crop((1000, 150, 1880, 465)).resize(size, Image.ANTIALIAS).convert('L').point(lambda x : 255 if x > 200 else 0),
+        img.crop((75, 690, 955, 1005)).resize(size, Image.ANTIALIAS).convert('L').point(lambda x : 255 if x > 200 else 0),
+        img.crop((1000, 690, 1880, 1005)).resize(size, Image.ANTIALIAS).convert('L').point(lambda x : 255 if x > 200 else 0),
     ]
 
     for i, userId in enumerate(userIds):
@@ -135,8 +141,8 @@ listener.start()
 
 # Init
 
-#with open('account.conf') as f:
-with open('research.conf') as f:
+with open('account.conf') as f:
+# with open('research.conf') as f:
     lines = f.readlines()
     for line in lines:
         if '#' in line:
